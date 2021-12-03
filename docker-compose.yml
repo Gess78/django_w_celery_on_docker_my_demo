@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/usr/src/app/
+    ports:
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  celery:
+    build: .
+    command: celery -A django_w_celery_on_docker_my_demo worker -l INFO  --logfile=logs/celery.log
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+
+  redis:
+    image: redis:6-alpine
+
+  dashboard:
+    build: .
+    command:  celery -A  django_w_celery_on_docker_my_demo flower
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+      - celery
+
+  celery-beat:
+    build: .
+    command: celery -A django_w_celery_on_docker_my_demo beat -l info
+    volumes:
+      - .:/usr/src/app/
+    environment:
+      - CELERY_BROKER=redis://redis:6379/0
+    depends_on:
+      - redis
